@@ -29,18 +29,20 @@ function InternalArr<E extends Runtype, RO extends boolean>(
           };
         }
 
+        const result: typeof xs = [];
+
         for (const x of xs) {
-          let validated = innerValidate(element, x, visited);
+          const validated = innerValidate(element, x, visited);
           if (!validated.success) {
             return {
               success: false,
               message: validated.message,
               key: validated.key ? `[${xs.indexOf(x)}].${validated.key}` : `[${xs.indexOf(x)}]`,
             };
-          }
+          } else result.push(validated.value);
         }
 
-        return { success: true, value: xs };
+        return { success: true, value: result };
       },
       { tag: 'array', isReadonly, element },
     ),

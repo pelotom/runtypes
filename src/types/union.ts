@@ -991,9 +991,8 @@ export function Union(...alternatives: Rt[]): any {
       }
 
       for (const targetType of alternatives) {
-        if (innerValidate(targetType, value, visited).success) {
-          return { success: true, value };
-        }
+        const validated = innerValidate(targetType, value, visited);
+        if (validated.success) return validated;
       }
 
       const a = create<any>(value as never, { tag: 'union', alternatives });

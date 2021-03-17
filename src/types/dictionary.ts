@@ -42,6 +42,8 @@ export function Dictionary<V extends Runtype>(value: V, key = 'string'): any {
           return { success: false, message: 'Expected dictionary, but was array' };
       }
 
+      const result: typeof x = {};
+
       for (const k in x) {
         // Object keys are unknown strings
         if (key === 'number') {
@@ -52,17 +54,17 @@ export function Dictionary<V extends Runtype>(value: V, key = 'string'): any {
             };
         }
 
-        let validated = innerValidate(value, (x as any)[k], visited);
+        const validated = innerValidate(value, (x as any)[k], visited);
         if (!validated.success) {
           return {
             success: false,
             message: validated.message,
             key: validated.key ? `${k}.${validated.key}` : k,
           };
-        }
+        } else result[k] = validated.value;
       }
 
-      return { success: true, value: x };
+      return { success: true, value: result };
     },
     { tag: 'dictionary', key, value },
   );

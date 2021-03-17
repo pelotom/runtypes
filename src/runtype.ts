@@ -7,6 +7,8 @@ import {
   Constraint,
   ConstraintCheck,
   Brand,
+  Transform,
+  Transformer,
 } from './index';
 import { Reflect } from './reflect';
 import show from './show';
@@ -88,6 +90,26 @@ export interface Runtype<A = unknown> {
   ): Constraint<this, T, K>;
 
   /**
+   * Performs arbitrary transformation of the value when validating.
+   *
+   * @template T - Typically inferred from the return type of the transformer
+   * function, so usually not needed to specify manually.
+   * @template R - Typically inferred from the underlying runtype so usually not
+   * needed to specify manually.
+   * @param {(x: Static<R>) => T} transformer - If the transformation succeeded,
+   * return resulting value. If it failed, throw with a value that describes the
+   * error, for example "Error message" or `new Error("message")`. The exception
+   * is caught by the runtype.
+   * @param [options]
+   * @param {string} [options.name] - Allows setting the name of this which is
+   * helpful in reflection or diagnostic use-cases.
+   */
+  withTransform<T extends unknown, R extends Runtype = this>(
+    transformer: Transformer<this, T>,
+    options?: { name?: string },
+  ): Transform<R, T>;
+
+  /**
    * Adds a brand to the type.
    */
   withBrand<B extends string>(brand: B): Brand<B, this>;
@@ -121,6 +143,7 @@ export function create<A extends Runtype>(
   A.And = And;
   A.withConstraint = withConstraint;
   A.withGuard = withGuard;
+  A.withTransform = withTransform;
   A.withBrand = withBrand;
   A.reflect = A;
   A.toString = () => `Runtype<${show(A)}>`;
@@ -159,6 +182,13 @@ export function create<A extends Runtype>(
     options?: { name?: string; args?: K },
   ): Constraint<A, T, K> {
     return Constraint<A, T, K>(A, guard, options);
+  }
+
+  function withTransform<T extends unknown>(
+    transformer: Transformer<A, T>,
+    options?: { name?: string },
+  ): Transform<A, T> {
+    return Transform(A, transformer, options);
   }
 
   function withBrand<B extends string>(B: B): Brand<B, A> {

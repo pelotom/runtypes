@@ -29,6 +29,7 @@ import {
   InstanceOf,
   Brand,
   Guard,
+  Transform,
 } from './index';
 
 import { Constructor } from './types/instanceof';
@@ -173,6 +174,16 @@ const runtypes = {
     .asReadonly()
     .And(RTPartial({ bar: String }).asReadonly()),
   EmptyTuple: Tuple(),
+  ParseInt: String.withTransform(s => {
+    const parsed = parseInt(s);
+    if (isNaN(parsed)) throw new Error('Input is invalid');
+    else return parsed;
+  }),
+  AbsoluteNumber: Number.withTransform(n => {
+    const abs = Math.abs(n);
+    if (isNaN(abs)) throw new Error('Input is invalid');
+    else return abs;
+  }).withBrand('AbsoluteNumber'),
 };
 
 type RuntypeName = keyof typeof runtypes;
@@ -188,11 +199,19 @@ const testValues: { value: unknown; passes: RuntypeName[] }[] = [
   { value: null, passes: ['Null', 'Void'] },
   { value: true, passes: ['Boolean', 'true'] },
   { value: false, passes: ['Boolean', 'false'] },
-  { value: 3, passes: ['Number', 'brandedNumber', 3, 'union1'] },
+  { value: 3, passes: ['Number', 'brandedNumber', 3, 'union1', 'AbsoluteNumber'] },
   {
     value: 42,
-    passes: ['Number', 'brandedNumber', 42, 'MoreThanThree', 'MoreThanThreeWithMessage'],
+    passes: [
+      'Number',
+      'brandedNumber',
+      42,
+      'MoreThanThree',
+      'MoreThanThreeWithMessage',
+      'AbsoluteNumber',
+    ],
   },
+  { value: '42', passes: ['String', 'union1', 'ParseInt'] },
   { value: 'hello world', passes: ['String', 'hello world', 'union1'] },
   { value: [Symbol('0'), Symbol(42), Symbol()], passes: ['symbolArray'] },
   { value: Symbol.for('runtypes'), passes: ['Sym'] },
@@ -716,6 +735,13 @@ describe('reflection', () => {
     expectLiteralField(C, 'tag', 'brand');
     expectLiteralField(C.entity, 'tag', 'number');
   });
+
+  it('transform', () => {
+    const C = Number.withTransform(Math.abs, { name: 'AbsoluteNumber' });
+    expectLiteralField(C, 'tag', 'transform');
+    expectLiteralField(C.underlying, 'tag', 'number');
+    expectLiteralField(C, 'name', 'AbsoluteNumber');
+  });
 });
 
 describe('change static type with Constraint', () => {
@@ -762,7 +788,8 @@ describe('change static type with Constraint', () => {
     | Function
     | Constraint<Reflect, any, any>
     | InstanceOf<Constructor<never>>
-    | Brand<string, Reflect>,
+    | Brand<string, Reflect>
+    | Transform<Reflect, unknown>,
 ): Reflect => {
   const check = <A>(X: Runtype<A>): A => X.check({});
   switch (X.tag) {

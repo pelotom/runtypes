@@ -56,21 +56,23 @@ export function InternalRecord<
           return { success: false, message: `Expected ${show(a)}, but was ${x}` };
         }
 
+        const result: typeof x = {};
+
         for (const key in fields) {
           if (!isPartial || (hasKey(key, x) && x[key] !== undefined)) {
             const value = isPartial || hasKey(key, x) ? x[key] : undefined;
-            let validated = innerValidate(fields[key], value, visited);
+            const validated = innerValidate(fields[key], value, visited);
             if (!validated.success) {
               return {
                 success: false,
                 message: validated.message,
                 key: validated.key ? `${key}.${validated.key}` : key,
               };
-            }
+            } else result[key] = validated.value;
           }
         }
 
-        return { success: true, value: x };
+        return { success: true, value: result };
       },
       { tag: 'record', isPartial, isReadonly, fields },
     ),

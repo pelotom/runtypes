@@ -68,6 +68,8 @@ const cases: [Reflect, string][] = [
   [Function, 'function'],
   [Lazy(() => Boolean), 'boolean'],
   [Number.withConstraint(x => x > 3), 'number'],
+  [String.withTransform(parseInt), 'string'],
+  [Array(String.withTransform(parseInt)), 'string[]'],
   [Number.withBrand('someNumber'), 'number'],
   [Number.withBrand('someNumber').withConstraint(x => x > 3), 'number'],
 

@@ -272,6 +272,47 @@ const B = Guard(Buffer.isBuffer);
 type T = Static<typeof B>; // T will have type of `Buffer`
 ```
 
+## Transforms
+
+Sometimes we want to convert values along with validation, for example:
+
+- Populate properties of more descriptive object with a shorthand value
+- Deserialize incoming data into hydrated object, e.g. timestamp `number` to `Date`
+- Maintain backward compatibility upgrading old input into new representation
+
+We have a Swiss Army knife for such situations, called `Transform`. Usually you
+want to use it through `withTransform` method of a `Runtype`:
+
+```ts
+const ParsedInt = String.withTransform(s => {
+  const parsed = parseInt(s);
+  if (isNaN(parsed)) throw new Error('Parse failed');
+  else return parsed;
+});
+```
+
+Errors thrown by transformer functions are gracefully caught by the underlying
+`Runtype` and treated as validation errors like usual:
+
+```ts
+if (ParsedInt.guard('crap')) return 'Never reach here';
+else return 'Always reach here';
+
+ParsedInt.check('crap');
+// ValidationError: Failed transform: Error: Parse failed
+```
+
+`Static` should work as expected:
+
+```ts
+type ParsedInt = Static<typeof ParsedInt>;
+// Above type is inferred as: `number`
+```
+
+Maybe you've noticed that `Transform` actually covers the same functionalities
+of `Constraint` and `Guard`, but it's not recommended using `Transform`s without
+any transformation of values, simply because it makes your code look nonsense.
+
 ## Function contracts
 
 Runtypes along with constraint checking are a natural fit for enforcing function

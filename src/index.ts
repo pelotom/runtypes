@@ -23,5 +23,6 @@ export * from './types/function';
 export { InstanceOf } from './types/instanceof';
 export * from './types/lazy';
 export * from './types/constraint';
+export * from './types/transform';
 export { Brand } from './types/brand';
 export * from './decorator';

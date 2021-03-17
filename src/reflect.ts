@@ -2,6 +2,7 @@ import { Runtype } from './runtype';
 import { LiteralBase } from './types/literal';
 import { ConstraintCheck } from './types/constraint';
 import { Constructor } from './types/instanceof';
+import { Transformer } from './types/transform';
 
 export type Reflect =
   | ({ tag: 'unknown' } & Runtype)
@@ -31,6 +32,12 @@ export type Reflect =
       underlying: Reflect;
       constraint: ConstraintCheck<Runtype<never>>;
       args?: any;
+      name?: string;
+    } & Runtype)
+  | ({
+      tag: 'transform';
+      underlying: Reflect;
+      transformer: Transformer<Reflect, unknown>;
       name?: string;
     } & Runtype)
   | ({ tag: 'instanceof'; ctor: Constructor<unknown> } & Runtype)

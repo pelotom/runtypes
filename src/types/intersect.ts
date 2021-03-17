@@ -219,13 +219,14 @@ export function Intersect<
 export function Intersect(...intersectees: Runtype[]): any {
   return create(
     (value, visited) => {
+      const result: typeof value = {};
+
       for (const targetType of intersectees) {
-        let validated = innerValidate(targetType, value, visited);
-        if (!validated.success) {
-          return validated;
-        }
+        const validated = innerValidate(targetType, value, visited);
+        if (!validated.success) return validated;
+        else Object.assign(result, validated.value);
       }
-      return { success: true, value };
+      return { success: true, value: result };
     },
     { tag: 'intersect', intersectees },
   );

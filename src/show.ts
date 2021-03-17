@@ -53,6 +53,8 @@ const show = (needsParens: boolean, circular: Set<Reflect>) => (refl: Reflect): 
         return parenthesize(`${refl.intersectees.map(show(true, circular)).join(' & ')}`);
       case 'constraint':
         return refl.name || show(needsParens, circular)(refl.underlying);
+      case 'transform':
+        return refl.name || show(needsParens, circular)(refl.underlying);
       case 'instanceof':
         const name = (refl.ctor as any).name;
         return `InstanceOf<${name}>`;

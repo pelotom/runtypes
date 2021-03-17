@@ -243,8 +243,10 @@ export function Tuple(...components: Runtype[]): any {
         };
       }
 
+      const result: typeof x = [];
+
       for (let i = 0; i < components.length; i++) {
-        let validatedComponent = innerValidate(components[i], validated.value[i], visited);
+        const validatedComponent = innerValidate(components[i], validated.value[i], visited);
 
         if (!validatedComponent.success) {
           return {
@@ -252,10 +254,10 @@ export function Tuple(...components: Runtype[]): any {
             message: validatedComponent.message,
             key: validatedComponent.key ? `[${i}].${validatedComponent.key}` : `[${i}]`,
           };
-        }
+        } else result.push(validatedComponent.value);
       }
 
-      return { success: true, value: x };
+      return { success: true, value: result };
     },
     { tag: 'tuple', components },
   );
