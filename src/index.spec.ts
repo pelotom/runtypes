@@ -785,10 +785,10 @@ describe('change static type with Constraint', () => {
     | Literal<boolean | number | string>
     | Array<Reflect, false>
     | Array<Reflect, true>
-    | Record<{ [_ in string]: Reflect }, false>
-    | Record<{ [_ in string]: Reflect }, true>
-    | RTPartial<{ [_ in string]: Reflect }, false>
-    | RTPartial<{ [_ in string]: Reflect }, true>
+    | Record<{ [_ in string]: Reflect }, false, false>
+    | Record<{ [_ in string]: Reflect }, true, false>
+    | RTPartial<{ [_ in string]: Reflect }, false, false>
+    | RTPartial<{ [_ in string]: Reflect }, true, false>
     | Tuple2<Reflect, Reflect>
     | Union2<Reflect, Reflect>
     | Intersect2<Reflect, Reflect>
