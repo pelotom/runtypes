@@ -2,6 +2,7 @@ import { Reflect } from '../reflect';
 import { Details, Result } from '../result';
 import { Runtype, RuntypeBase, Static, create, innerValidate } from '../runtype';
 import { enumerableKeysOf, FAILURE, SUCCESS } from '../util';
+import { Never } from './never';
 
 export interface Tuple<A extends readonly RuntypeBase[]>
   extends Runtype<
@@ -11,13 +12,18 @@ export interface Tuple<A extends readonly RuntypeBase[]>
   > {
   tag: 'tuple';
   components: A;
+
+  readonly properties: A;
 }
 
 /**
  * Construct a tuple runtype from runtypes for each of its elements.
  */
 export function Tuple<T extends readonly RuntypeBase[]>(...components: T): Tuple<T> {
-  const self = ({ tag: 'tuple', components } as unknown) as Reflect;
+  const properties = new Proxy(components, {
+    get: (components, key) => components[key as any] || Never,
+  });
+  const self = ({ tag: 'tuple', components, properties } as unknown) as Reflect;
   return create<any>((xs, visited) => {
     if (!Array.isArray(xs)) return FAILURE.TYPE_INCORRECT(self, xs);
 

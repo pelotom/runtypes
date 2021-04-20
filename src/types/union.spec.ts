@@ -1,6 +1,7 @@
 import { Union, String, Literal, Record, Number, InstanceOf } from '..';
 import { Failcode } from '../result';
 import { Static } from '../runtype';
+// import { Boolean } from './boolean';
 import { LiteralBase } from './literal';
 
 const ThreeOrString = Union(Literal(3), String);
@@ -69,6 +70,8 @@ describe('union', () => {
         message: 'Expected { kind: "circle"; radius: number; }, but was incompatible',
         details: { radius: 'Expected number, but was missing' },
       });
+
+      // console.log(Union(String, Number, Record({ test: Boolean })).validate({ test: new Date() }));
 
       expect(Shape.validate({ kind: 'other', size: new Date() })).not.toHaveProperty('key');
     });

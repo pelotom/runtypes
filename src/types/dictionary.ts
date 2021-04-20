@@ -2,8 +2,10 @@ import { Runtype, RuntypeBase, create, Static, innerValidate } from '../runtype'
 import { String } from './string';
 import { Constraint } from './constraint';
 import show from '../show';
-import { enumerableKeysOf, FAILURE, SUCCESS } from '../util';
+import { enumerableKeysOf, FAILURE, isNumberLikeString, SUCCESS } from '../util';
 import { Details, Result } from '../result';
+import { Reflect } from '../reflect';
+import { Never } from './never';
 
 type DictionaryKeyType = string | number | symbol;
 type StringLiteralFor<K extends DictionaryKeyType> = K extends string
@@ -22,6 +24,8 @@ export interface Dictionary<V extends RuntypeBase, K extends DictionaryKeyType>
   tag: 'dictionary';
   key: StringLiteralFor<K>;
   value: V;
+
+  readonly properties: { [_ in K]: V };
 }
 
 export interface StringDictionary<V extends RuntypeBase>
@@ -29,6 +33,8 @@ export interface StringDictionary<V extends RuntypeBase>
   tag: 'dictionary';
   key: 'string';
   value: V;
+
+  readonly properties: { [_: string]: V };
 }
 
 export interface NumberDictionary<V extends RuntypeBase>
@@ -36,6 +42,8 @@ export interface NumberDictionary<V extends RuntypeBase>
   tag: 'dictionary';
   key: 'number';
   value: V;
+
+  readonly properties: { [_: number]: V };
 }
 
 /**
@@ -86,7 +94,25 @@ export function Dictionary<
       ? NumberKey
       : (key as Exclude<K, string>);
   const keyString = show(keyRuntype as any);
-  const self = { tag: 'dictionary', key: keyString, value } as any;
+
+  const testKey = (key: DictionaryKeyType) => {
+    // We should provide interoperability with `number` and `string` here,
+    // as a user would expect JavaScript engines to convert numeric keys to
+    // string keys automatically. So, if the key can be interpreted as a
+    // decimal number, then test it against a `Number` OR `String` runtype.
+    const isNumberLikeKey = typeof key === 'string' && isNumberLikeString(key);
+    const keyInterop = isNumberLikeKey ? global.Number(key) : key;
+    if (isNumberLikeKey) return keyRuntype.guard(keyInterop) || keyRuntype.guard(key);
+    else return keyRuntype.guard(key);
+  };
+
+  const properties = new Proxy(
+    {},
+    {
+      get: (_, key) => (testKey(key) ? value : Never),
+    },
+  );
+  const self = ({ tag: 'dictionary', key: keyString, value, properties } as unknown) as Reflect;
   return create<any>((x, visited) => {
     if (x === null || x === undefined || typeof x !== 'object')
       return FAILURE.TYPE_INCORRECT(self, x);
@@ -94,23 +120,12 @@ export function Dictionary<
     if (Object.getPrototypeOf(x) !== Object.prototype)
       if (!Array.isArray(x) || keyString === 'string') return FAILURE.TYPE_INCORRECT(self, x);
 
-    const numberString = /^(?:NaN|-?\d+(?:\.\d+)?)$/u;
     const keys = enumerableKeysOf(x);
     const results = keys.reduce<{ [key in string | number | symbol]: Result<unknown> }>(
       (results, key) => {
-        // We should provide interoperability with `number` and `string` here,
-        // as a user would expect JavaScript engines to convert numeric keys to
-        // string keys automatically. So, if the key can be interpreted as a
-        // decimal number, then test it against a `Number` OR `String` runtype.
-        const isNumberLikeKey = typeof key === 'string' && numberString.test(key);
-        const keyInterop = isNumberLikeKey ? global.Number(key) : key;
-        if (
-          isNumberLikeKey
-            ? !keyRuntype.guard(keyInterop) && !keyRuntype.guard(key)
-            : !keyRuntype.guard(keyInterop)
-        ) {
-          results[key as any] = FAILURE.KEY_INCORRECT(self, keyRuntype.reflect, keyInterop);
-        } else results[key as any] = innerValidate(value, x[key], visited);
+        if (!testKey(key))
+          results[key as any] = FAILURE.KEY_INCORRECT(self, keyRuntype.reflect, key);
+        else results[key as any] = innerValidate(value, x[key], visited);
         return results;
       },
       {},

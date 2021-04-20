@@ -1,6 +1,7 @@
 import { Reflect } from '../reflect';
 import { Runtype, RuntypeBase, Static, create, innerValidate } from '../runtype';
-import { SUCCESS } from '../util';
+import { Merge, SUCCESS, UnionToIntersection, UnionToTuple } from '../util';
+import { Never } from './never';
 
 export interface Intersect<A extends readonly [RuntypeBase, ...RuntypeBase[]]>
   extends Runtype<
@@ -14,6 +15,28 @@ export interface Intersect<A extends readonly [RuntypeBase, ...RuntypeBase[]]>
   > {
   tag: 'intersect';
   intersectees: A;
+
+  readonly properties: {
+    [K in keyof A]: A[K] extends { properties: unknown } ? A[K] : never;
+  }[number] extends never
+    ? {}
+    : {
+        [K in keyof A]: A[K] extends { properties: unknown } ? A[K] : never;
+      }[number]['properties'] extends infer U
+    ? UnionToIntersection<U> extends infer I
+      ? Merge<{ [K in keyof I]: I[K] extends never ? unknown : I[K] } & U> extends infer M
+        ? {
+            [K in keyof M]: UnionToTuple<M[K]> extends infer T
+              ? T extends [RuntypeBase, ...RuntypeBase[]]
+                ? T extends [RuntypeBase, RuntypeBase, ...RuntypeBase[]]
+                  ? Intersect<T>
+                  : T[0]
+                : never
+              : never;
+          }
+        : never
+      : never
+    : never;
 }
 
 /**
@@ -22,7 +45,22 @@ export interface Intersect<A extends readonly [RuntypeBase, ...RuntypeBase[]]>
 export function Intersect<A extends readonly [RuntypeBase, ...RuntypeBase[]]>(
   ...intersectees: A
 ): Intersect<A> {
-  const self = ({ tag: 'intersect', intersectees } as unknown) as Reflect;
+  const properties = new Proxy(intersectees, {
+    get: (intersectees, key) => {
+      const intersecteesForProperty = intersectees
+        .filter(intersectee => 'properties' in intersectee)
+        .map(intersectee => (intersectee as any).properties[key as any])
+        .filter(alternative => alternative.tag !== 'never');
+      const runtypeForProperty =
+        intersecteesForProperty.length === 0
+          ? Never
+          : intersecteesForProperty.length === 1
+          ? intersecteesForProperty[0]
+          : Intersect(...(intersecteesForProperty as [RuntypeBase, ...RuntypeBase[]]));
+      return runtypeForProperty;
+    },
+  });
+  const self = ({ tag: 'intersect', intersectees, properties } as unknown) as Reflect;
   return create((value, visited) => {
     for (const targetType of intersectees) {
       const result = innerValidate(targetType, value, visited);

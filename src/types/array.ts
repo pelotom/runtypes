@@ -1,18 +1,22 @@
 import { Reflect } from '../reflect';
 import { Details, Result } from '../result';
 import { Runtype, RuntypeBase, Static, create, innerValidate } from '../runtype';
-import { enumerableKeysOf, FAILURE, SUCCESS } from '../util';
+import { enumerableKeysOf, FAILURE, isNumberLikeString, SUCCESS } from '../util';
+import { Never } from './never';
 
 type ArrayStaticType<E extends RuntypeBase, RO extends boolean> = RO extends true
   ? ReadonlyArray<Static<E>>
   : Static<E>[];
 
-interface Arr<E extends RuntypeBase, RO extends boolean> extends Runtype<ArrayStaticType<E, RO>> {
+interface Arr<E extends RuntypeBase, RO extends boolean = boolean>
+  extends Runtype<ArrayStaticType<E, RO>> {
   tag: 'array';
   element: E;
   isReadonly: RO;
 
   asReadonly(): Arr<E, true>;
+
+  readonly properties: { [_: number]: E };
 }
 
 /**
@@ -22,7 +26,13 @@ function InternalArr<E extends RuntypeBase, RO extends boolean>(
   element: E,
   isReadonly: RO,
 ): Arr<E, RO> {
-  const self = ({ tag: 'array', isReadonly, element } as unknown) as Reflect;
+  const properties = new Proxy(
+    {},
+    {
+      get: (_, key) => (typeof key === 'string' && isNumberLikeString(key) ? element : Never),
+    },
+  );
+  const self = ({ tag: 'array', isReadonly, element, properties } as unknown) as Reflect;
   return withExtraModifierFuncs(
     create((xs, visited) => {
       if (!Array.isArray(xs)) return FAILURE.TYPE_INCORRECT(self, xs);

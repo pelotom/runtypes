@@ -2,6 +2,7 @@ import { Runtype, RuntypeBase, Static, create, innerValidate } from '../runtype'
 import { enumerableKeysOf, FAILURE, hasKey, SUCCESS } from '../util';
 import { Optional } from './optional';
 import { Details, Result } from '../result';
+import { Never } from './never';
 
 type FilterOptionalKeys<T> = {
   [K in keyof T]: T[K] extends Optional<any> ? K : never;
@@ -52,25 +53,26 @@ export interface InternalRecord<
 
   asPartial(): InternalRecord<O, true, RO>;
   asReadonly(): InternalRecord<O, Part, true>;
+
   pick<K extends keyof O>(
     ...keys: K[] extends (keyof O)[] ? K[] : never[]
   ): InternalRecord<Pick<O, K>, Part, RO>;
   omit<K extends keyof O>(
     ...keys: K[] extends (keyof O)[] ? K[] : never[]
   ): InternalRecord<Omit<O, K>, Part, RO>;
+
+  readonly properties: O;
 }
 
-export type Record<O extends { [_: string]: RuntypeBase }, RO extends boolean> = InternalRecord<
-  O,
-  false,
-  RO
->;
+export type Record<
+  O extends { [_: string]: RuntypeBase },
+  RO extends boolean = boolean
+> = InternalRecord<O, false, RO>;
 
-export type Partial<O extends { [_: string]: RuntypeBase }, RO extends boolean> = InternalRecord<
-  O,
-  true,
-  RO
->;
+export type Partial<
+  O extends { [_: string]: RuntypeBase },
+  RO extends boolean = boolean
+> = InternalRecord<O, true, RO>;
 
 /**
  * Construct a record runtype from runtypes for its values.
@@ -80,7 +82,10 @@ export function InternalRecord<
   Part extends boolean,
   RO extends boolean
 >(fields: O, isPartial: Part, isReadonly: RO): InternalRecord<O, Part, RO> {
-  const self = { tag: 'record', isPartial, isReadonly, fields } as any;
+  const properties = new Proxy(fields, {
+    get: (fields, key) => fields[key as any] || Never,
+  });
+  const self = { tag: 'record', isPartial, isReadonly, fields, properties } as any;
   return withExtraModifierFuncs(
     create((x, visited) => {
       if (x === null || x === undefined) {

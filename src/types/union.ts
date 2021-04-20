@@ -1,7 +1,8 @@
 import { Runtype, RuntypeBase, Static, create, innerValidate } from '../runtype';
 import { LiteralBase } from './literal';
-import { FAILURE, hasKey, SUCCESS } from '../util';
+import { FAILURE, hasKey, SUCCESS, UnionToTuple, Merge } from '../util';
 import { Reflect } from '../reflect';
+import { Never } from './never';
 
 export interface Union<A extends readonly [RuntypeBase, ...RuntypeBase[]]>
   extends Runtype<
@@ -12,6 +13,26 @@ export interface Union<A extends readonly [RuntypeBase, ...RuntypeBase[]]>
   tag: 'union';
   alternatives: A;
   match: Match<A>;
+
+  readonly properties: {
+    [K in keyof A]: A[K] extends { properties: unknown } ? never : A[K];
+  }[number] extends never
+    ? Merge<
+        {
+          [K in keyof A]: A[K] extends { properties: unknown } ? A[K] : never;
+        }[number]['properties']
+      > extends infer M
+      ? {
+          [K in keyof M]: UnionToTuple<M[K]> extends infer T
+            ? T extends [RuntypeBase, ...RuntypeBase[]]
+              ? T extends [RuntypeBase, RuntypeBase, ...RuntypeBase[]]
+                ? Union<T>
+                : T[0]
+              : never
+            : never;
+        }
+      : never
+    : {};
 }
 
 /**
@@ -27,7 +48,23 @@ export function Union<T extends readonly [RuntypeBase, ...RuntypeBase[]]>(
       }
     }
   };
-  const self = ({ tag: 'union', alternatives, match } as unknown) as Reflect;
+
+  const properties = new Proxy(alternatives, {
+    get: (alternatives, key) => {
+      const alternativesForProperty = alternatives
+        .filter(alternative => 'properties' in alternative)
+        .map(alternative => (alternative as any).properties[key as any])
+        .filter(alternative => alternative.tag !== 'never');
+      const runtypeForProperty =
+        alternativesForProperty.length !== alternatives.length
+          ? Never
+          : alternativesForProperty.length === 1
+          ? alternativesForProperty[0]
+          : Union(...(alternativesForProperty as [Runtype, ...Runtype[]]));
+      return runtypeForProperty;
+    },
+  });
+  const self = ({ tag: 'union', alternatives, match, properties } as unknown) as Reflect;
   return create<any>((value, visited) => {
     if (typeof value !== 'object' || value === null) {
       for (const alternative of alternatives)
@@ -70,10 +107,9 @@ export function Union<T extends readonly [RuntypeBase, ...RuntypeBase[]]>(
       }
     }
 
-    for (const targetType of alternatives)
-      if (innerValidate(targetType, value, visited).success) return SUCCESS(value);
-
-    return FAILURE.TYPE_INCORRECT(self, value);
+    for (const alternative of alternatives)
+      if (innerValidate(alternative, value, visited).success) return SUCCESS(value);
+    return FAILURE.CONTENT_INCORRECT(self, value);
   }, self);
 }
 
