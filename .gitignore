@@ -1,6 +1,9 @@
 # Compiled output
 lib/
 
+# Generated docs output
+docs/
+
 # Code coverage output
 coverage/
 
